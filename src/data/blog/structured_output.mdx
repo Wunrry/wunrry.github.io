@@ -1,0 +1,276 @@
+---
+pubDatetime: 2024-02-23
+title: Intelligent Agent System Design Based on Structured Output and Function Calling
+draft: false
+tags:
+  - agent
+  - structured output
+  - function call
+description: This report details the design and implementation of an intelligent agent system leveraging Large Language Models (LLMs).
+---
+
+## **Introduction**
+
+Large Language Models (LLMs) excel at generating human-like text, but their outputs are often free-form and unpredictable. For applications where an LLM's output is consumed by another program—such as calling a function or populating a database—a strict, predictable format is essential. Ensuring the model's output conforms to a predefined schema, like a valid JSON object or a specific numerical format, is a critical engineering challenge.
+
+This report presents a systematic approach to controlling LLM outputs. We will explore the `Guidance` framework, a paradigm that offers more granular control over the text generation process compared to traditional prompting techniques. Key topics covered include:
+
+*   **Constrained Text Generation:** Using regular expressions (regex) and other rules to force the LLM to generate text that matches a specific pattern.
+*   **Structured Data Generation:** A deep dive into generating well-formed JSON objects, a cornerstone for modern API communication.
+*   **Function Calling Integration:** Enabling the LLM to use external tools and APIs, thereby expanding its knowledge base and capabilities beyond its training data.
+*   **Case Study:** Building a functional AI agent that answers questions about current weather by calling an external weather API.
+
+For the implementation, we utilize a quantized version of the Mistral-7B Instruct model, running locally via LlamaCpp. This model offers a strong balance of performance and accessibility, capable of running on consumer-grade hardware.
+
+## **he `Guidance` Framework for Controlled Generation**
+
+The `Guidance` library provides a powerful interface for interleaving generation, prompting, and logical control. Instead of treating the LLM as a black box, it allows developers to guide the model's output token by token, ensuring compliance with specified constraints.
+
+First, we load the model. The following code snippet demonstrates how to load the Mistral-7B model using the `guidance.models.LlamaCpp` interface.
+
+```python
+from guidance import models, gen
+
+# Path to the GGUF model file
+model_path = "mistral-7b-instruct-v0.2.Q8_0.gguf" 
+llm = models.LlamaCpp(model_path, n_ctx=4096, n_gpu_layers=-1)
+```
+
+Text generation in `Guidance` is performed by chaining prompts and `gen()` calls using the `+` operator.
+
+```python
+# A simple generation task
+program = llm + 'Write a joke about Llamas.' + gen(max_tokens=70, temperature=0.8)
+```
+
+The returned `program` object is a stateless template. To capture the generated output, a `name` argument must be provided to the `gen()` function. This assigns the output to a key, making it accessible for later use.
+
+```python
+# Capturing the output using the 'name' parameter
+program = llm + 'Write a joke about Llamas.\n' + gen(name="joke", max_tokens=70, temperature=0.8, stop="\n")
+
+# The generated text is now accessible via the "joke" key
+print(program["joke"])
+```
+
+## **Enforcing Output Constraints**
+
+A key feature of `Guidance` is its ability to enforce fine-grained constraints on the generated text using tools like regular expressions.
+
+### **Constraining with Regular Expressions**
+
+The `gen()` function includes a `regex` parameter that forces the output to match a given pattern. This is incredibly useful for extracting specific data types, like numbers. Consider a scenario where we need a numerical answer to a question, but the LLM tends to generate a full sentence.
+
+We can use the regex pattern `\d+` to ensure the output consists of one or more digits.
+
+```python
+# Forcing the LLM to output only a number
+lm = llm + 'Question: Luke has ten balls. He gives three to his brother.\n'
+lm += 'How many balls does he have left?\n'
+lm += 'Answer: ' + gen(regex='\d+')
+```
+This program will repeatedly call the LLM until the generated text strictly matches the `\d+` pattern, guaranteeing a numerical output (in this case, "7").
+
+Similarly, the `stop_regex` parameter can be used to terminate generation when a specific pattern is encountered. In this example, we generate a list of even numbers and stop when the number "20" appears.
+
+```python
+# Using stop_regex to control the end of generation
+lm = llm + 'Write a list of 10 even integers starting from 2:\n' + gen(max_tokens=50, stop_regex='[^\d]20[^\d]')
+```
+The output will be a list of even numbers that halts just before "20" would be fully generated, providing precise control over the generation boundary.
+
+## **Generating Structured JSON**
+
+JSON is the de facto standard for data interchange, but LLMs often produce malformed JSON (e.g., with trailing commas, incorrect quoting, or extraneous text), causing parsing errors. `Guidance` provides a robust solution for generating syntactically correct JSON.
+
+Let's say our goal is to generate a JSON object mapping numbers as words to their integer values. A naive prompt might result in an invalid output:
+
+```json
+// Example of a potentially malformed output from a simple prompt
+```json
+{
+    "two": 2,
+    "Four": 4, // Inconsistent key casing
+    "six": 6,
+    ...
+}
+```
+And here's a few sentences of explanation that we didn't ask for.
+```
+
+To enforce the correct structure, we can embed `gen()` calls directly within a JSON template, constraining each key and value.
+
+```python
+# A structured template to enforce JSON schema
+lm = llm + f"""
+The following is a list of 10 even integers starting from 2 in JSON format. The keys are numbers in words and values are integers:
+
+{{
+    "two": 2,
+    "four": {gen('integer', regex='[0-9]+', stop=',')},
+    "{gen('number', regex='[a-z]+', stop='"')}": {gen('integer', regex='[0-9]+', stop=',')},
+    "{gen('number', regex='[a-z]+', stop='"')}": {gen('integer', regex='[0-9]+', stop=',')},
+    "{gen('number', regex='[a-z]+', stop='"')}": {gen('integer', regex='[0-9]+', stop=',')},
+    "{gen('number', regex='[a-z]+', stop='"')}": {gen('integer', regex='[0-9]+', stop=',')},
+    "{gen('number', regex='[a-z]+', stop='"')}": {gen('integer', regex='[0-9]+', stop=',')},
+    "{gen('number', regex='[a-z]+', stop='"')}": {gen('integer', regex='[0-9]+', stop=',')},
+    "{gen('number', regex='[a-z]+', stop='"')}": {gen('integer', regex='[0-9]+', stop=',')},
+    "{gen('number', regex='[a-z]+', stop='"')}": {gen('integer', regex='[0-9]+', stop='}')}
+}}"""
+```
+
+This is effective but repetitive. `Guidance` supports control flow constructs like loops, which can be used to create more elegant and scalable templates. We can define a `guidance` function to generate the list programmatically.
+
+```python
+import guidance
+
+@guidance
+def generate_even_integers_json(lm, n):
+    lm += f"The following is a list of {n} even integers starting from 2 in JSON format...\n"
+    lm += "{\n"
+    for i in range(n):
+        lm += f'    "{gen("number", regex="[a-z]+", stop=\'"\', list_append=True)}": '
+        lm += f'{gen("integer", regex="[0-9]+", stop=",", list_append=True)}'
+        if i < n - 1:
+            lm += ',\n'
+        else:
+            lm += '\n'
+    lm += "}"
+    return lm   
+
+# Execute the programmatic template
+lm = llm + generate_even_integers_json(10)
+```
+This approach produces a perfectly formatted JSON object while keeping the prompt clean and maintainable.
+
+## **LLM Tool Use and Function Calling**
+
+To move from a simple generator to an intelligent agent, an LLM must be able to interact with the outside world. This is achieved through "tool use," or function calling. The `gen()` function's `tools` parameter allows the integration of external Python functions.
+
+Each tool is defined by:
+1.  **Grammar:** A pattern that triggers the tool call and captures its arguments.
+2.  **Tool Call:** The actual function to be executed.
+
+When the LLM generates text that matches a tool's grammar, generation is paused, the tool is executed, and its output is injected back into the context, allowing the LLM to resume generation with new information.
+
+The following example demonstrates a simple calculator with four tools:
+
+```python
+@guidance
+def add(lm, input1, input2):
+    lm += f' = {int(input1) + int(input2)}'
+    return lm
+
+@guidance
+def subtract(lm, input1, input2):
+    lm += f' = {int(input1) - int(input2)}'
+    return lm
+
+# (multiply and divide functions would be defined similarly)
+
+# Few-shot examples to teach the model the tool-use format
+lm = llm + '''\
+1 + 1 = add(1, 1) = 2
+2 - 3 = subtract(2, 3) = -1
+4 * 5 =''' # The model will complete this line
+
+# The LLM will now attempt to use the provided tools to solve the problem
+lm + gen(max_tokens=15, tools=[add, subtract, multiply, divide])
+```
+
+## **Case Study: Building an Intelligent Weather Agent**
+
+We can now combine these concepts to build a practical agent. This agent will answer questions about the current temperature in any city by calling an external weather API (`wttr.in`).
+
+### **Defining the External Tool**
+
+First, we create a `guidance` function that takes a city name, calls the weather API, and returns the current conditions as a JSON string.
+
+```python
+import json
+import requests
+
+@guidance
+def weather_api(lm, city):
+    """Fetches current weather data for a given city."""
+    try:
+        response = requests.get(f"https://wttr.in/{city}?format=j1")
+        response.raise_for_status() # Raise an exception for bad status codes
+        data = response.json().get("current_condition", [{}])[0]
+        # Sanitize data to ensure it's a clean JSON string
+        observation = json.dumps(data, separators=(',', ':'))
+    except (requests.RequestException, json.JSONDecodeError) as e:
+        observation = f'{{"error": "Failed to retrieve weather data for {city}"}}'
+    
+    return lm + "\nObservation: " + observation + "\n"
+```
+
+### **Implementing the ReAct Prompting Framework**
+
+To guide the agent's reasoning process, we use the **ReAct (Reasoning and Acting)** framework. This involves a prompt template that instructs the model to follow a `Thought -> Action -> Observation` cycle until it can answer the user's question.
+
+```python
+prompt_template = """Answer the following questions as best you can. You have access to the following tools:
+
+{tools}
+
+Use the following format:
+
+Question: The input question you must answer.
+Thought 1: You should always think about what to do.
+Action 1: The action to take, which must be one of {tool_names}. The input should be in the format function_name(argument).
+Observation 1: The result of the action.
+... (this Thought/Action/Observation cycle can repeat N times)
+Thought N: I now know the final answer.
+Final Answer: The final answer to the original input question.
+Done.
+
+Question: {query}
+"""
+```
+
+### **Execution and Analysis**
+
+We combine the tool, the prompt, and the user query to run the agent.
+
+```python
+# Define available tools and their descriptions for the prompt
+tools = {
+    "weather_api": "Given an input location (city), it returns a JSON of current weather info."
+}
+tool_names = list(tools.keys())
+
+# User's query
+query = "what is the temperature in London today?"
+
+# Format the full prompt
+prompt_with_query = prompt_template.format(
+    tools=json.dumps(tools, indent=2), 
+    tool_names=tool_names, 
+    query=query
+)
+
+# Run the agent
+agent_run = llm + prompt_with_query + gen(
+    max_tokens=300, 
+    tools=[weather_api], 
+    stop="Done."
+)
+```
+
+When executed, the LLM will generate a reasoning trace similar to this:
+
+```
+Thought 1: I need to find the temperature in London. I can use the `weather_api` tool for this.
+Action 1: weather_api(London)
+Observation 1: {"temp_C":"4","temp_F":"39",...}
+Thought 2: The observation contains the temperature in Celsius, which is "4". I can now answer the question.
+Final Answer: The temperature in London today is 4 degrees Celsius.
+Done.
+```
+
+The agent successfully identified the required tool, called it with the correct parameter, parsed its output, and formulated a final answer based on real-time data.
+
+## **Conclusion**
+
+This report has demonstrated a systematic approach to transforming a standard LLM into a reliable and capable intelligent agent. By enforcing structured outputs and integrating external tools, we can overcome the limitations of unstructured text generation and build applications that interact with real-world data and systems. The `Guidance` framework proves to be an effective tool for this purpose, offering precise control over the generation process. The key takeaway is that the true power of LLMs is unlocked not just by prompting, but by programmatically guiding their behavior to ensure their outputs are structured, predictable, and actionable. Future work could explore the integration of more complex tools, multi-step reasoning chains, and dynamic tool selection to build even more sophisticated agents.

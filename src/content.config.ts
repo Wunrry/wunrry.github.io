@@ -6,15 +6,15 @@ const blog = defineCollection({
   schema: () =>
     z.object({
       pubDatetime: z.date(),
-      series: z.string().optional(),
       image: z.string().optional(),
       title: z.string(),
       draft: z.boolean().optional(),
       tags: z.array(z.string()).default(["others"]),
-      category: z.string(),
+      category: z.string().optional(),
       description: z.string(),
     }),
 });
+
 
 const projects = defineCollection({
   loader: glob({ pattern: "**/*.{md,mdx}", base: "./src/data/projects" }),

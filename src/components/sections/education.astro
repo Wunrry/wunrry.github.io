@@ -1,3 +1,4 @@
+
 ---
 import { PROFILE_INFO } from "@/lib/constants/profile";
 import MarkdownRenderer from "@/components/ui/markdown-renderer.astro";
@@ -10,12 +11,12 @@ import BoxContent from "@/components/box/content.astro";
 
 <Box>
   <BoxHeader>
-    <BoxTitle> About </BoxTitle>
+    <BoxTitle> Education </BoxTitle>
   </BoxHeader>
   <BoxContent>
     <MarkdownRenderer
       className="text-base leading-8 font-normal"
-      content={PROFILE_INFO.about}
+      content={PROFILE_INFO.education}
     />
 
   </BoxContent>

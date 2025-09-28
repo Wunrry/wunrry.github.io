@@ -1,10 +1,10 @@
 ---
-import LouaiAvatar from "@/components/ui/louai-avatar.astro";
+import WunrryAvatar from "@/components/ui/wunrry-avatar.astro";
 import Box from "@/components/box/index.astro";
 import BoxContent from "@/components/box/content.astro";
 
 import { PROFILE_INFO } from "@/lib/constants/profile";
-import { Briefcase } from "lucide-react";
+import { Briefcase, BookOpen, FileText } from "lucide-react";
 
 import VerifiedIcon from "@/components/ui/icons/verified.astro";
 import XIcon from "@/components/ui/icons/x.astro";
@@ -15,30 +15,81 @@ import LinkedinIcon from "@/components/ui/icons/linkedin.astro";
 <div class="screen-line-after relative flex items-center p-4 md:border-x">
   <div class="shrink-0">
     <div class="relative z-1 mx-0.5 my-1">
-      <LouaiAvatar
+      <WunrryAvatar
         className="size-20 rounded-full ring-1 ring-border ring-offset-2 ring-offset-background sm:size-28"
       />
     </div>
   </div>
 
   <div class="flex flex-1 flex-col">
-    <div class="flex grow items-end pb-1 pl-4">
+    <!-- <div class="flex grow items-end pb-1 pl-4">
       <div class="line-clamp-1 font-mono text-xs text-muted-foreground">
         {PROFILE_INFO.slogan}
       </div>
-    </div>
+    </div> -->
 
     <div class="">
       <h1 class="flex items-center gap-x-2 pl-4 text-2xl font-black">
         {PROFILE_INFO.displayName}
-        <VerifiedIcon class="size-4 text-blue-500" />
+        <!-- <VerifiedIcon class="size-4 text-blue-500" /> -->
       </h1>
 
-      <div class="py-1 pl-4">
-        <p class="text-sm !font-normal">
-          {PROFILE_INFO.role}
+      <!-- Role and Work Info -->
+      <div class="py-1 pl-4 space-y-2">
+        <p class="text-base font-medium leading-relaxed">
+          Data Science at
+          <a
+            href="https://www.tencent.com"
+            target="_blank"
+            class="text-blue-500 hover:text-blue-600 font-semibold"
+          >
+            Tencent Inc.
+          </a>
+        </p>
+        <p class="text-base font-medium leading-relaxed">
+          Researcher at
+          <a
+            href="https://gengzhige.ai/gair.html"
+            target="_blank"
+            class="text-blue-500 hover:text-blue-600 font-semibold"
+          >
+            Galaxy AI Research
+          </a>
+        </p>
+
+      </div>
+
+      
+      <div class="py-2 pl-4">
+        <p class="text-base font-medium leading-relaxed">
+          Email: {PROFILE_INFO.email}
         </p>
       </div>
+
+
+      
+      <!-- Links -->
+      <div class="py-2 pl-4 flex gap-4 text-base">
+        <a
+          href={PROFILE_INFO.cv}
+          target="_blank"
+          class="text-blue-500 hover:text-blue-600 font-semibold transition-colors"
+        >
+          CV
+        </a>
+        <span class="text-muted-foreground">/</span>
+        <a
+          href="https://github.com/wunrry"
+          class="text-blue-500 hover:text-blue-600 font-semibold transition-colors"
+          target="_blank"
+        >
+          GitHub
+        </a>
+      </div>
+
+
+
+      
     </div>
   </div>
 </div>
@@ -54,68 +105,6 @@ import LinkedinIcon from "@/components/ui/icons/linkedin.astro";
     get in touch
   </a>
 </div>
- */
+*/
 }
 
-<Box>
-  <BoxContent className="space-y-3">
-    <span class="flex items-center justify-start gap-2">
-      <Briefcase className="size-4" />
-      I build software at
-      <a
-        href="https://activepieces.com"
-        target="_blank"
-        class="underline underline-offset-4"
-      >
-        Activepieces
-      </a>
-    </span>
-    <span class="flex items-center justify-start gap-2">
-      <Briefcase className="size-4" />
-      Take a look at my
-      <a
-        href="https://drive.google.com/file/d/1c7-UIHy8GUvgj2XHuf7nfhUU4vpjRXSt/view?usp=sharing"
-        target="_blank"
-        class="underline underline-offset-4"
-      >
-        Resume
-      </a>
-    </span>
-
-    <span class="flex items-center justify-start gap-2">
-      <XIcon className="size-4" />
-      Follow me on
-      <a
-        href="https://x.com/Louai_Dourov"
-        target="_blank"
-        class="underline underline-offset-4"
-      >
-        Twitter
-      </a>
-    </span>
-
-    <span class="flex items-center justify-start gap-2">
-      <LinkedinIcon className="size-4" />
-      Let's connect on
-      <a
-        href="https://www.linkedin.com/in/louai-boumediene-018919262/"
-        class="underline underline-offset-4"
-        target="_blank"
-      >
-        LinkedIn
-      </a>
-    </span>
-
-    <span class="flex items-center justify-start gap-2">
-      <GithubIcon className="size-4" />
-      Check out my repos on
-      <a
-        href="https://github.com/Louai-Zokerburg"
-        class="underline underline-offset-4"
-        target="_blank"
-      >
-        GitHub
-      </a>
-    </span>
-  </BoxContent>
-</Box>

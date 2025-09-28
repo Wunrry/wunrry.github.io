@@ -1,81 +1,156 @@
 ---
-name: Creerway | Job Finding Platform
+name: SANDBOX | A Flexible Code Executor for Dify
 type: core
-sourceCode: https://github.com/crarrer-way-org/career-way-web
+sourceCode: https://github.com/Wunrry/dify-sandbox
 technologies:
-  - nextjs
-  - react
-  - honojs
-  - appwrite
+  - node
   - docker
-  - shadcn-ui
-  - tailwindcss
-  - tanstack query
+  - python
+  - shell
 
-description: A platform for IT professionals to find jobs, apply, and conduct interviews via online calls. It has two parts, one for job seekers to browse and apply, and another for companies to post jobs, manage profiles, and more.
+description: A code executor for Dify that is compatible with the official sandbox API calls and dependency installation,primarily for data analysis.
 ---
 
-# CreerWay | Job Finding Website
+# DIFY-SANDBOX-PY | A Flexible Code Executor for Dify
+
 
 ## Project Manifesto
 
 ### Introduction
-CreerWay is an innovative job-finding platform designed specifically for IT professionals. It aims to bridge the gap between job seekers and companies by offering a seamless experience for applying to jobs, discovering companies, and conducting interviews—all within a single platform.
+DIFY-SANDBOX-PY is a custom code executor tailored for **Dify**—the open-source LLM application development platform—designed to maintain full compatibility with Dify’s official sandbox API while unlocking greater flexibility for personal workflows. Built to support Python 3.12 and Node.js 20, this tool addresses a key pain point of the official Dify sandbox: restrictive permissions and limited dependency support that often cause frustrating errors for data analysis tasks.
 
-With CreerWay, IT professionals can build detailed profiles, search for opportunities, and apply for jobs with ease. On the other hand, companies can craft compelling profiles, post job openings, and efficiently find top talent.
+While the official Dify sandbox excels at security (with strict permission controls to prevent code injection), it falls short for personal use cases where you fully own and edit Dify’s code nodes. DIFY-SANDBOX-PY fills this gap by offering **broader permissions** and out-of-the-box support for data science libraries (like `numpy>2.0`, `matplotlib`, and `scikit-learn`), eliminating confusing dependency-related errors and streamlining data-focused workflows.
 
-What sets CreerWay apart is its built-in **interviewing platform**, enabling companies to conduct live interviews with candidates and allowing job seekers to practice with **preparation interviews**.
+Developed by referencing Dify’s official sandbox API specifications, this project prioritizes compatibility while adding features that make Dify more powerful for tasks like data visualization, numerical analysis, and script execution.
+
 
 ---
 
 ## 🌟 Key Features
-### 🏆 For Job Seekers
-- **Profile Creation** – Build a detailed profile showcasing your skills, experience, and portfolio.
-- **Job Search & Application** – Find job listings tailored to your expertise and apply with ease.
-- **Company Discovery** – Explore company profiles and understand their culture and job opportunities.
-- **Preparation Interviews** – Practice with mock interviews to sharpen your skills before real ones.
+DIFY-SANDBOX-PY builds on the official sandbox’s core functionality with targeted improvements for usability and data work:
 
-### 🏢 For Companies
-- **Job Posting** – Create and manage job postings for different roles.
-- **Talent Search** – Discover and reach out to top professionals in the industry.
-- **Company Profile** – Showcase your company's culture, values, and mission to attract the right candidates.
-- **Built-in Interviewing** – Conduct live interviews with candidates directly on the platform.
+### 🐍 Python & Node.js Support
+- Natively supports **Python 3.12** and **Node.js 20**—aligning with modern runtime standards for stability and performance.
+- Seamlessly integrates with Dify’s code nodes, requiring no changes to your existing Dify workflows (beyond updating the sandbox image).
+
+### 📊 Data Analysis Ready
+- Pre-installs essential data science libraries by default, saving you time on manual setup:
+  - `numpy` (for numerical computing)
+  - `pandas` (for data manipulation)
+  - `matplotlib` (for data visualization)
+- Eliminates "missing dependency" errors that often disrupt data-focused Dify projects.
+
+### 🎨 New Plotting Endpoint
+- Introduces a dedicated `/v1/sandbox/plot` endpoint to generate visualizations directly from JSON input.  
+  Send a POST request with structured JSON (e.g., x/y data, titles, labels), and the endpoint returns a PNG image of your plot.  
+  **Test Example JSON**:
+  ```json
+  {
+      "x": [1, 2, 3, 4, 5],
+      "y": [10, 20, 25, 30, 40],
+      "title": "Sample Plot",
+      "xlabel": "X Axis",
+      "ylabel": "Y Axis"
+  }
+  ```
+
+### ⚡ Blazing-Fast Dependency Installation
+- Uses **UV** (a modern Python dependency manager) instead of `pip`, enabling millisecond-level dependency installs when restarting the sandbox.  
+  This is a massive upgrade over traditional `pip` installs, which can take minutes for large libraries.
+
+### 🌐 Unrestricted Network Access
+- Removes the official sandbox’s network restrictions by default.  
+  Perfect for tasks like fetching data from APIs, downloading datasets, or integrating with external services directly from Dify code nodes.
+
+### 🧩 Easy Dependency Management
+- Follow Dify’s familiar workflow for adding custom dependencies:  
+  Simply list required packages in `/docker/volumes/sandbox/dependencies/python-requirements.txt` and restart the sandbox—UV handles the rest.
+
 
 ---
 
 ## 🛠 Tech Stack
-CreerWay is built using a modern and efficient technology stack to ensure performance, scalability, and maintainability:
+DIFY-SANDBOX-PY uses a lightweight, high-performance stack to ensure compatibility and speed:
 
-- **Frontend:** Next.js, React, shadcn/ui, Tailwind CSS
-- **Backend:** Hono.js
-- **Database & Authentication:** Appwrite
-- **State Management:** React Query
-- **Containerization & Deployment:** Docker
+| Component               | Purpose                                                                 |
+|-------------------------|-------------------------------------------------------------------------|
+| **FastAPI**             | Powers the sandbox API (including the new `/v1/sandbox/plot` endpoint) |
+| **Python 3.12**         | Runtime for Python code execution and data science tasks               |
+| **Node.js 20**          | Runtime for Node.js code execution                                     |
+| **UV**                  | Python dependency manager (fast installs, minimal overhead)            |
+| **Matplotlib**          | Renders plots for the `/v1/sandbox/plot` endpoint                      |
+| **Numpy/Pandas**        | Pre-installed data science core libraries                              |
+| **Docker**              | Containerization for easy deployment and consistency across environments |
+
 
 ---
 
-## 🚀 Roadmap & Development
-CreerWay is still in its early development phase, and we have an ambitious roadmap ahead. You can follow our progress and contribute to the project here:
+## 🚀 Usage Guide
+Getting started with DIFY-SANDBOX-PY is straightforward—just update your Dify `docker-compose.yaml` to use the pre-built image or build it yourself.
 
-🔗 [Roadmap & Project Board](https://github.com/orgs/crarrer-way-org/projects/1/views/1)
+### Option 1: Use the Pre-Built Docker Image
+1. Open your Dify project’s `docker-compose.yaml` file.
+2. Locate the `sandbox` service section and replace the official image with the DIFY-SANDBOX-PY image:
+   ```yaml
+   sandbox:
+     # Replace the official image with this line
+     image: svcvit/dify-sandbox-py:0.1.2
+     # Keep other existing configs (ports, volumes, etc.) unchanged
+   ```
+3. Restart your Dify services with:
+   ```bash
+   docker-compose down && docker-compose up -d
+   ```
 
-🔗 [GitHub Repository](https://github.com/crarrer-way-org/career-way-web)
+### Option 2: Build the Image Locally
+If you want to customize the sandbox further, build the image from source:
+1. Clone the DIFY-SANDBOX-PY repository (replace with your repo URL if public):
+   ```bash
+   git clone <your-repository-url> dify-sandbox-py
+   cd dify-sandbox-py
+   ```
+2. Build the Docker image:
+   ```bash
+   docker build -t dify-sandbox-py:local .
+   ```
+3. Update `docker-compose.yaml` to use your local image:
+   ```yaml
+   sandbox:
+     image: dify-sandbox-py:local
+   ```
+4. Restart Dify services as before.
+
+
+---
+
+## ⚠️ Important Notes
+- **Personal Use Focus**: This sandbox is intended for scenarios where you fully control and edit Dify’s code nodes. It disables some security restrictions (e.g., network access), so avoid using it with untrusted code.
+- **Core Dependencies Only**: The base image includes only FastAPI and runtime essentials. Any additional libraries (e.g., `scikit-learn`, `tensorflow`) must be added to `python-requirements.txt`.
+- **UV vs. Pip**: UV is faster, but if you need `pip`-specific flags, you can modify the Dockerfile to override the dependency manager.
+
 
 ---
 
 ## 🎯 Vision & Goals
-Our mission with CreerWay is to create a job-finding experience that goes beyond just submitting resumes. We want to build a **career ecosystem** that fosters professional growth, enables direct communication between companies and job seekers, and simplifies the hiring process for everyone involved.
+The goal of DIFY-SANDBOX-PY is to make Dify a more powerful tool for **data practitioners** and hobbyists. By removing unnecessary restrictions and pre-configuring data science tools, we want to:
+1. Eliminate the friction of dependency management in Dify code nodes.
+2. Enable seamless data visualization and analysis directly within Dify workflows.
+3. Provide a drop-in alternative to the official sandbox that prioritizes flexibility for personal projects.
 
-We envision a platform where candidates can not only find jobs but also enhance their interviewing skills, get feedback, and land the right opportunities with confidence.
+Ultimately, this project aims to help users focus on building great Dify applications—without getting stuck on permission errors or missing libraries.
+
 
 ---
 
 ## 🤝 Contributing & Support
-We welcome contributions from developers, designers, and career professionals who share our vision. Whether it's improving the UI, adding new features, fixing bugs, or providing feedback, your support is invaluable.
+DIFY-SANDBOX-PY is an open-source project, and contributions are welcome! Whether you want to:
+- Add support for more libraries (e.g., `seaborn`, `plotly`),
+- Improve the `/v1/sandbox/plot` endpoint (e.g., add chart types),
+- Fix bugs or optimize performance,
 
-If you love this project, consider giving it a ⭐ on GitHub and joining our mission to make job searching in tech **smarter, simpler, and more effective**.
+feel free to fork the repository, submit a pull request, or open an issue. 
 
----
+If you find this tool useful, consider giving it a ⭐ on GitHub (link to your repo here) to help others discover it. For questions or troubleshooting, reach out via the repository’s issue tracker.
 
-Built with ❤️ for IT professionals and companies.
 
+Built with ❤️ for Dify users who want more flexibility in their code workflows.

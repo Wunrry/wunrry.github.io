@@ -1,0 +1,242 @@
+---
+pubDatetime: 2024-03-23
+title: LangChain Agent Architecture and Deployment for Enterprise Applications
+draft: false
+tags:
+  - agent
+  - langchain
+description: Powering Autonomous Agents：A Deep Dive into Open-Source LLMs, ReAct, and Performance Benchmarks 
+---
+
+
+## **Introduction**
+
+Large Language Models (LLMs) trained on causal language modeling are remarkably versatile. However, they often struggle with fundamental tasks requiring logic, computation, or real-time search. In the worst-case scenario, an LLM might recognize its weakness in a domain like mathematics but will still attempt to perform the calculations itself, often leading to incorrect results.
+
+To overcome this limitation, one effective strategy is to integrate the LLM into a larger system where it can delegate tasks to external **tools**. Such a system is commonly referred to as an **LLM Agent**.
+
+In this article, I'll first break down the inner workings of the popular **ReAct** agent framework. Then, I'll demonstrate how to build one using the recently integrated `ChatHuggingFace` class in LangChain. Finally, I will present benchmark results comparing several open-source LLMs against GPT-3.5 and GPT-4 as reasoning engines for these agents.
+
+## **What is an LLM Agent?**
+
+The definition of an LLM agent is quite broad. It refers to any system that uses an LLM as its core reasoning engine and can exert influence on its environment based on observations. These systems operate in a "Perceive ⇒ Think ⇒ Act" loop over multiple iterations to accomplish a given task. They often incorporate planning or knowledge management systems to enhance their performance. 
+
+Today, our focus is on **ReAct agents**. The name "ReAct" is a portmanteau of "Reasoning" and "Acting." Within the prompt, we provide the model with a set of available tools and instruct it to "think step-by-step" (a form of Chain-of-Thought prompting) to plan and execute its next actions to achieve a final goal.
+
+## **A Look Inside a ReAct Agent**
+
+While the concept might sound abstract, the underlying principle is straightforward.
+
+> *You can find a minimalist implementation of tool-calling using the `transformers` library in [this notebook](https://github.com/huggingface/transformers/blob/main/examples/research_projects/react/run_react.py) for a from-scratch perspective.*
+
+Essentially, the LLM is called within a loop. The prompt in each iteration contains the following elements:
+
+```json
+Here is the question: "{question}"
+You can use these tools: {tools_descriptions}.
+First, you need to 'Think: {your_thoughts}', then you can either:
+- Invoke a tool with the correct JSON format,
+- Or, output your answer prefixed with 'Final Answer:'.
+```
+
+Next, you parse the LLM's output:
+
+1.  **If the output contains the string `Final Answer:`**, the loop terminates, and that answer is returned.
+2.  **Otherwise, the output is a tool call.** You parse this output to get the tool's name and its parameters. You then execute the tool with those parameters. The result of this tool call (the `Observation`) is appended to the prompt, and the expanded prompt is passed back to the LLM. This cycle continues until the LLM has enough information to provide a final answer.
+
+For instance, to answer the question, *"How many seconds are in 1:23:45?"*, the LLM's initial output might be:
+
+```json
+Think: I need to convert the time string into seconds.
+Action:
+{
+    "action": "convert_time",
+    "action_input": {
+        "time": "1:23:45"
+    }
+}
+```
+
+Since this output doesn't contain `Final Answer:`, it's a tool call. We parse it, call the `convert_time` tool with the argument `{"time": "1:23:45"}`, and the tool returns `{'seconds': '5025'}`.
+
+Now, we append this entire exchange to the prompt. The updated prompt becomes (in a more detailed view):
+
+```json
+Here is the question: "How many seconds are in 1:23:45?"
+You can use the following tools:
+    - convert_time: Converts a time in hours, minutes, and seconds to seconds.
+
+First, 'Think: {your_thoughts}', then you can either:
+- Invoke a tool with the correct JSON format,
+- Or, output your answer prefixed with 'Final Answer:'.
+
+Think: I need to convert the time string into seconds.
+Action:
+{
+    "action": "convert_time",
+    "action_input": {
+        "time": "1:23:45"
+    }
+}
+Observation: {'seconds': '5025'}
+```
+
+➡️ We call the LLM again with this new, richer prompt. Now that it has access to the `Observation` from the tool call, the LLM will most likely output:
+
+```json
+Think: I now have the information needed to answer the question.
+Final Answer: There are 5025 seconds in 1:23:45.
+```
+And the task is complete!
+
+## **Challenges in Agentic Systems**
+
+Building robust agentic systems powered by LLMs presents several common challenges:
+
+1.  **Tool Selection:** The agent must choose a tool that actually helps achieve the goal. For example, when asked, *"What is the smallest prime number greater than 30,000?"*, an agent might incorrectly call a `Search` tool with a query like *"What is the height of K2?"*, which is unhelpful.
+2.  **Strict Parameter Formatting:** The agent must invoke tools with precise, machine-readable arguments. For instance, to calculate the speed of a car that travels 3 km in 10 minutes, the `Calculator` tool must be called correctly. Even if the tool expects a JSON call like `{"tool": "Calculator", "args": "3/10"}`, many pitfalls exist:
+    *   **Tool name misspellings:** `calculator` or `Compute`.
+    *   **Passing parameter names instead of values:** `"args": "distance/time"`.
+    *   **Non-standardized formats:** `"args": "3km in 10minutes"`.
+3.  **Information Synthesis:** The agent must efficiently absorb and utilize information from past observations, whether from the initial context or from tool outputs.
+
+## **Implementation: Building an Agent with LangChain**
+
+The `ChatHuggingFace` wrapper was recently integrated into 🦜🔗`LangChain`, making it simple to create agents from open-source models. The code to create a `ChatModel` and equip it with tools is very concise. You can find the complete code in the [LangChain documentation](https://python.langchain.com/docs/integrations/chat/huggingface/).
+
+```python
+from langchain_community.llms import HuggingFaceHub
+from langchain_community.chat_models.huggingface import ChatHuggingFace
+
+# Initialize the base LLM from Hugging Face Hub
+llm = HuggingFaceHub(
+    repo_id="HuggingFaceH4/zephyr-7b-beta",
+    task="text-generation",
+)
+
+# Wrap the LLM to create a ChatModel
+chat_model = ChatHuggingFace(llm=llm)
+```
+
+You can transform this `chat_model` into a ReAct agent by providing it with a specialized prompt and a set of tools:
+
+```python
+from langchain import hub
+from langchain.agents import AgentExecutor, load_tools
+from langchain.agents.format_scratchpad import format_log_to_str
+from langchain.agents.output_parsers import ReActJsonSingleInputOutputParser
+from langchain.tools.render import render_text_description
+
+# 1. Set up the tools
+tools = load_tools(["serpapi", "llm-math"], llm=llm)
+
+# 2. Set up the ReAct-style prompt
+# Pull a pre-made prompt template and partially fill it
+prompt = hub.pull("hwchase17/react-json")
+prompt = prompt.partial(
+    tools=render_text_description(tools),
+    tool_names=", ".join([t.name for t in tools]),
+)
+
+# 3. Define the agent by chaining components together
+chat_model_with_stop = chat_model.bind(stop=["\nObservation"])
+agent = (
+    {
+        "input": lambda x: x["input"],
+        "agent_scratchpad": lambda x: format_log_to_str(x["intermediate_steps"]),
+    }
+    | prompt
+    | chat_model_with_stop
+    | ReActJsonSingleInputOutputParser()
+)
+
+# 4. Instantiate the AgentExecutor
+agent_executor = AgentExecutor(agent=agent, tools=tools, verbose=True)
+
+# Run the agent
+agent_executor.invoke(
+    {
+        "input": "Who is the current holder of the speed skating world record on 500 meters? What is her current age raised to the 0.43 power?"
+    }
+)
+```
+
+The agent will process this input by reasoning and acting in steps:
+```json
+Thought: To answer this question, I need to find the age of the current speed skating world record holder. I will use the search tool for this.
+Action:
+{
+  "action": "search",
+  "action_input": "age of 500m speed skating world record holder"
+}
+Observation: ...
+```
+
+## **Evaluation Methodology**
+
+The goal was to assess the performance of open-source LLMs as general-purpose reasoning agents. Therefore, the evaluation focused on problems requiring logic and the use of basic tools like a calculator and an internet search API.
+
+The final dataset was a curated combination of samples from three sources:
+*   **HotpotQA:** To test internet search capabilities. Although it's a retrieval dataset, its questions serve well for general Q&A requiring web access. Some questions require multi-step searches to synthesize information from different sources.
+*   **GSM8K:** To test calculator usage. This dataset contains grade-school math problems that can be solved with the four basic arithmetic operations.
+*   **GAIA:** A challenging benchmark for general-purpose AI assistants. While the original dataset requires many different tools (like code interpreters or PDF readers), problems were selected that only required search and a calculator.
+
+The evaluation was conducted using **GPT-4 as a judge**, prompted with a format based on the [Prometheus methodology](https://arxiv.org/abs/2305.11442). Results were scored on a 5-point Likert scale. 
+
+## **The Contenders**
+
+Several powerful open-source models were evaluated:
+*   `Llama2-70b-chat`
+*   `Mixtral-8x7B-Instruct-v0.1`
+*   `OpenHermes-2.5-Mistral-7B`
+*   `Zephyr-7b-beta`
+*   `SOLAR-10.7B-Instruct-v1.0`
+
+These models were evaluated using LangChain's ReAct implementation, which prompted them to output function calls in the format:
+`{"action": $TOOL_NAME, "action_input": $INPUT}`
+
+For comparison, **GPT-3.5** and **GPT-4** were also evaluated on the same examples using LangChain's OpenAI-specific agent implementation. This is an important distinction, as OpenAI's models have been extensively fine-tuned on their proprietary function-calling format, giving them a home-field advantage.
+
+## **Results & Analysis**
+
+Given that the open-source models were not specifically fine-tuned for this particular function-calling format, they were at a slight disadvantage compared to the OpenAI agents.
+
+Despite this, some models performed exceptionally well! 💪
+
+Here is an example of `Mixtral-8x7B` answering, *"Which city has a larger population, Guiyang or Tacheng?"*
+
+```json
+Thought: To answer this, I need to find the current populations of Guiyang and Tacheng. I will use the search tool for this.
+Action:
+{
+    "action": "search",
+    "action_input": "current population of Guiyang"
+}
+Observation: 4.697 million (2016)
+
+Thought: I have the population for Guiyang, which is 4.697 million as of 2016. Now I will use the search tool again to find the population of Tacheng.
+Action:
+{
+    "action": "search",
+    "action_input": "current population of Tacheng"
+}
+Observation: Population: Xinjiang: Tacheng data was reported at 1,110,000 Person in 2021. This records a decrease from the previous number of 1,138,638 Person for 2020.
+
+Thought: I have determined that Tacheng's population is approximately 1.11 million as of 2021. Comparing the two, Guiyang has a larger population. I now know the final answer.
+Final Answer: Guiyang has a larger population, with approximately 4.697 million people (as of 2016), compared to Tacheng's population of approximately 1.11 million (as of 2021).
+```
+
+The benchmark results revealed that some open-source models struggle to power agentic workflows. While this was expected for the smaller `Zephyr-7b`, the poor performance of `Llama2-70b` was surprising.
+
+👉 **However, `Mixtral-8x7B` performed brilliantly, even outperforming GPT-3.5!** 🏆
+
+This is its out-of-the-box performance. Unlike GPT-3.5, Mixtral has not (to public knowledge) been fine-tuned for agentic workflows, which demonstrably impacts its performance. For example, on the GAIA dataset, 10% of failures were due to Mixtral attempting to call a tool with improperly formatted parameters. With proper fine-tuning on function calling and task planning, Mixtral's score could be significantly higher.
+
+
+## **Conclusion**
+
+This analysis yields several key takeaways. First, while tested on a small subset of problems, the GAIA benchmark appears to be a very strong indicator of a model's overall performance in agentic workflows, as it often involves multiple reasoning steps and strict logic.
+
+Second, agentic workflows demonstrably elevate LLM performance. For example, the original GPT-4 technical report showed a 92% score on GSM8K with 5-shot CoT prompting. By providing a calculator tool, this benchmark achieved a **95% score with zero-shot prompting**. For `Mixtral-8x7B`, the LLM Leaderboard reports a 57.6% score with 5-shot prompting, whereas this agent-based approach reached **73% with zero-shot prompting** (on a 20-question subset of GSM8K).
+
+The era of capable open-source agents is here, and models like Mixtral are leading the charge.
