@@ -8,21 +8,22 @@ technologies:
   - python
   - shell
 
-description: A code executor for Dify that is compatible with the official sandbox API calls and dependency installation,primarily for data analysis.
+description: A code executor for Dify that is compatible with the official sandbox API calls and dependency installation,primarily for data analysis.  
 ---
 
-# DIFY-SANDBOX-PY | A Flexible Code Executor for Dify
+# SANDBOX | A Flexible Code Executor for Dify  
 
 
-## Project Manifesto
+## Project Manifesto  
 
-### Introduction
-DIFY-SANDBOX-PY is a custom code executor tailored for **Dify**—the open-source LLM application development platform—designed to maintain full compatibility with Dify’s official sandbox API while unlocking greater flexibility for personal workflows. Built to support Python 3.12 and Node.js 20, this tool addresses a key pain point of the official Dify sandbox: restrictive permissions and limited dependency support that often cause frustrating errors for data analysis tasks.
+### Introduction  
+DIFY-SANDBOX-PY is a custom code executor tailored for **Dify**—the open-source LLM application development platform—designed to maintain full compatibility with Dify’s official sandbox API while unlocking greater flexibility for personal workflows. Built to support Python 3.12 and Node.js 20, this tool addresses a key pain point of the official Dify sandbox: restrictive permissions and limited dependency support that often cause frustrating errors for data analysis tasks.  
 
-While the official Dify sandbox excels at security (with strict permission controls to prevent code injection), it falls short for personal use cases where you fully own and edit Dify’s code nodes. DIFY-SANDBOX-PY fills this gap by offering **broader permissions** and out-of-the-box support for data science libraries (like `numpy>2.0`, `matplotlib`, and `scikit-learn`), eliminating confusing dependency-related errors and streamlining data-focused workflows.
+While the official Dify sandbox excels at security (with strict permission controls to prevent code injection), it falls short for personal use cases where you fully own and edit Dify’s code nodes. DIFY-SANDBOX-PY fills this gap by offering **broader permissions** and out-of-the-box support for data science libraries (like `numpy>2.0`, `matplotlib`, and `scikit-learn`), eliminating confusing dependency-related errors and streamlining data-focused workflows.  
 
-Developed by referencing Dify’s official sandbox API specifications, this project prioritizes compatibility while adding features that make Dify more powerful for tasks like data visualization, numerical analysis, and script execution.
+Developed by referencing Dify’s official sandbox API specifications, this project prioritizes compatibility while adding features that make Dify more powerful for tasks like data visualization, numerical analysis, and script execution.  
 
+Source Code: https://github.com/Wunrry/dify-sandbox
 
 ---
 
@@ -30,19 +31,19 @@ Developed by referencing Dify’s official sandbox API specifications, this proj
 DIFY-SANDBOX-PY builds on the official sandbox’s core functionality with targeted improvements for usability and data work:
 
 ### 🐍 Python & Node.js Support
-- Natively supports **Python 3.12** and **Node.js 20**—aligning with modern runtime standards for stability and performance.
-- Seamlessly integrates with Dify’s code nodes, requiring no changes to your existing Dify workflows (beyond updating the sandbox image).
+- Natively supports **Python 3.12** and **Node.js 20**—aligning with modern runtime standards for stability and performance.  
+- Seamlessly integrates with Dify’s code nodes, requiring no changes to your existing Dify workflows (beyond updating the sandbox image).  
 
 ### 📊 Data Analysis Ready
-- Pre-installs essential data science libraries by default, saving you time on manual setup:
+- Pre-installs essential data science libraries by default, saving you time on manual setup:  
   - `numpy` (for numerical computing)
   - `pandas` (for data manipulation)
   - `matplotlib` (for data visualization)
-- Eliminates "missing dependency" errors that often disrupt data-focused Dify projects.
+- Eliminates "missing dependency" errors that often disrupt data-focused Dify projects.  
 
-### 🎨 New Plotting Endpoint
+### 🎨 New Plotting Endpoint  
 - Introduces a dedicated `/v1/sandbox/plot` endpoint to generate visualizations directly from JSON input.  
-  Send a POST request with structured JSON (e.g., x/y data, titles, labels), and the endpoint returns a PNG image of your plot.  
+- Send a POST request with structured JSON (e.g., x/y data, titles, labels), and the endpoint returns a PNG image of your plot.  
   **Test Example JSON**:
   ```json
   {
@@ -56,15 +57,15 @@ DIFY-SANDBOX-PY builds on the official sandbox’s core functionality with targe
 
 ### ⚡ Blazing-Fast Dependency Installation
 - Uses **UV** (a modern Python dependency manager) instead of `pip`, enabling millisecond-level dependency installs when restarting the sandbox.  
-  This is a massive upgrade over traditional `pip` installs, which can take minutes for large libraries.
+- This is a massive upgrade over traditional `pip` installs, which can take minutes for large libraries.
 
 ### 🌐 Unrestricted Network Access
 - Removes the official sandbox’s network restrictions by default.  
-  Perfect for tasks like fetching data from APIs, downloading datasets, or integrating with external services directly from Dify code nodes.
+- Perfect for tasks like fetching data from APIs, downloading datasets, or integrating with external services directly from Dify code nodes.
 
 ### 🧩 Easy Dependency Management
 - Follow Dify’s familiar workflow for adding custom dependencies:  
-  Simply list required packages in `/docker/volumes/sandbox/dependencies/python-requirements.txt` and restart the sandbox—UV handles the rest.
+- Simply list required packages in `/docker/volumes/sandbox/dependencies/python-requirements.txt` and restart the sandbox—UV handles the rest.
 
 
 ---
